@@ -1,0 +1,138 @@
+{
+  "items": [
+    {
+      "id": "file-showcase-image",
+      "title": "showcase-moodboard.png",
+      "description": "Pinned image widget for the canvas demo",
+      "contentType": "image",
+      "url": "https://images.unsplash.com/photo-1496293455970-f8581aae0e3b?auto=format&fit=crop&w=900&q=80",
+      "alt": "Showcase moodboard",
+      "x": 340,
+      "y": 120,
+      "width": 320,
+      "height": 240,
+      "fileExtension": "png",
+      "isWidget": true,
+      "interactive": false
+    },
+    {
+      "id": "file-showcase-audio",
+      "title": "night-drive.wav",
+      "description": "Pinned audio widget for the canvas demo",
+      "contentType": "audio",
+      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      "artist": "Hikarian Forge",
+      "x": 720,
+      "y": 140,
+      "width": 320,
+      "height": 180,
+      "fileExtension": "wav",
+      "isWidget": true,
+      "interactive": false
+    },
+    {
+      "id": "file-showcase-video",
+      "title": "intro-clip.mp4",
+      "description": "Pinned video widget for the canvas demo",
+      "contentType": "video",
+      "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      "x": 1120,
+      "y": 120,
+      "width": 360,
+      "height": 220,
+      "fileExtension": "mp4",
+      "isWidget": true,
+      "interactive": false
+    },
+    {
+      "id": "file-showcase-markdown",
+      "title": "canvas-tour.md",
+      "description": "Markdown panel example",
+      "contentType": "markdown",
+      "data": "# Canvas Tour\n\nThis file demonstrates markdown rendering with headings, lists, and regular text.\n\n- Drag icons\n- Open folders\n- Explore groups\n- Inspect widgets",
+      "x": 160,
+      "y": 420,
+      "width": 112,
+      "height": 112,
+      "fileExtension": "md",
+      "panelVariant": "editor",
+      "isWidget": false,
+      "interactive": true
+    },
+    {
+      "id": "file-showcase-table",
+      "title": "release-table.csv",
+      "description": "Table rendering example",
+      "contentType": "table",
+      "caption": "Recent releases",
+      "columns": ["Track", "Status", "Owner", "ETA"],
+      "rows": [
+        ["Night Drive", "Mixing", "Ari", "2d"],
+        ["Signal Bloom", "Review", "Mika", "Today"],
+        ["Afterglow", "Ready", "Jin", "Shipped"]
+      ],
+      "x": 300,
+      "y": 420,
+      "width": 112,
+      "height": 112,
+      "fileExtension": "csv",
+      "isWidget": false,
+      "interactive": true
+    },
+    {
+      "id": "file-showcase-embed",
+      "title": "dashboard.embed",
+      "description": "Embed widget example",
+      "contentType": "embed",
+      "x": 520,
+      "y": 420,
+      "width": 360,
+      "height": 180,
+      "fileExtension": "embed",
+      "isWidget": true,
+      "interactive": false
+    },
+    {
+      "id": "file-showcase-text",
+      "title": "notes.txt",
+      "description": "Plain text preview",
+      "contentType": "text",
+      "data": "This is a plain text file used to verify text rendering and panel behavior.",
+      "x": 960,
+      "y": 420,
+      "width": 112,
+      "height": 112,
+      "fileExtension": "txt",
+      "isWidget": false,
+      "interactive": true
+    },
+    {
+      "id": "file-showcase-mixed",
+      "title": "mixed-content.mix",
+      "description": "Mixed content blocks example",
+      "contentType": "mixed",
+      "blocks": [
+        {
+          "type": "markdown",
+          "data": "## Mixed Content\nThis block mixes markdown with structured data."
+        },
+        {
+          "type": "table",
+          "columns": ["Type", "Status"],
+          "rows": [
+            ["Markdown", "Ready"],
+            ["Table", "Ready"],
+            ["Widgets", "Ready"]
+          ]
+        }
+      ],
+      "x": 1100,
+      "y": 420,
+      "width": 112,
+      "height": 112,
+      "fileExtension": "mix",
+      "isWidget": false,
+      "interactive": true
+    }
+  ]
+}
