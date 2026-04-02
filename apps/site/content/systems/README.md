@@ -1,3 +1,8 @@
+---
+title: Systems
+type: collection
+---
+
 # Systems
 
-This group contains structured project files that help test non-media content.
+This folder contains structured project files including design tokens and system configurations.

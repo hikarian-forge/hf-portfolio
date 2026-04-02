@@ -1,3 +1,9 @@
+---
+title: Session Notes
+type: production
+project: album-one
+---
+
 # Session Notes
 
 ## Production Checkpoint

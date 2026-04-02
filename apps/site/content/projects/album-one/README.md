@@ -1,9 +1,15 @@
+---
+title: Album One
+type: project
+status: active
+---
+
 # Album One
 
-This folder acts as a group entry point for a richer nested content tree.
+This folder acts as an entry point for a richer nested content tree.
 
 ## Goals
 
 - Test nested folder navigation
 - Verify markdown rendering
-- Confirm groups can contain both files and folders
+- Confirm folders can contain both files and sub-folders

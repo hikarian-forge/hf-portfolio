@@ -1,13 +1,11 @@
-import { ChevronDown, ChevronUp, Hand, LayoutGrid, ZoomIn, ZoomOut } from "lucide-react"
+import { ChevronDown, ChevronUp, Hand, ZoomIn, ZoomOut } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { CanvasGrid } from "@/components/canvas/canvas-grid"
-import { CanvasWidget } from "@/components/canvas/canvas-widget"
 import { FileTile as FileTileComponent } from "@/components/canvas/file-tile"
 import { FolderTile as FolderTileComponent } from "@/components/canvas/folder-tile"
-import { GroupTile as GroupTileComponent } from "@/components/canvas/group-tile"
 import { TilePanel } from "@/components/canvas/tile-panel"
 import { useCanvasStore } from "@/store/canvasStore"
-import type { CanvasItem, FileTile, FolderTile, GroupTile } from "@/types/canvas"
+import type { CanvasItem, FileTile, FolderTile } from "@/types/canvas"
 
 class InfiniteCanvasController {
   scale = 1
@@ -39,7 +37,6 @@ type InteractionState =
   | { mode: "pan"; pointerX: number; pointerY: number; originX: number; originY: number }
   | { mode: "move-item"; pointerX: number; pointerY: number; itemId: string; originX: number; originY: number }
 
-const widgetTypes = new Set(["image", "audio", "video", "embed"])
 const ZOOM_STEP = 1.12
 const keyboardShortcutGroups = [
   [
@@ -71,7 +68,6 @@ export function InfiniteCanvas() {
   const offsetY = useCanvasStore((state) => state.offsetY)
   const files = useCanvasStore((state) => state.files)
   const folders = useCanvasStore((state) => state.folders)
-  const groups = useCanvasStore((state) => state.groups)
   const openPanels = useCanvasStore((state) => state.openPanels)
   const activePanelId = useCanvasStore((state) => state.activePanelId)
   const selectedItemId = useCanvasStore((state) => state.selectedItemId)
@@ -80,7 +76,6 @@ export function InfiniteCanvas() {
   const selectItem = useCanvasStore((state) => state.selectItem)
   const openFile = useCanvasStore((state) => state.openFile)
   const openFolder = useCanvasStore((state) => state.openFolder)
-  const openGroup = useCanvasStore((state) => state.openGroup)
   const closePanel = useCanvasStore((state) => state.closePanel)
 
   useEffect(() => {
@@ -244,11 +239,6 @@ export function InfiniteCanvas() {
         const activePanel = openPanels.find((panel) => panel.id === activePanelId)
         if (activePanel?.parentId) {
           event.preventDefault()
-          if (activePanel.parentType === "group") {
-            openGroup(activePanel.parentId)
-            return
-          }
-
           openFolder(activePanel.parentId)
         }
         return
@@ -287,11 +277,9 @@ export function InfiniteCanvas() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [activePanelId, closePanel, offsetX, offsetY, openFolder, openGroup, openPanels, scale, selectItem, viewportSize.height, viewportSize.width])
+  }, [activePanelId, closePanel, offsetX, offsetY, openFolder, openPanels, scale, selectItem, viewportSize.height, viewportSize.width])
 
-  const items = useMemo<CanvasItem[]>(() => [...files, ...folders, ...groups], [files, folders, groups])
-  const widgetFiles = useMemo(() => files.filter((file) => widgetTypes.has(file.content.type) && file.isWidget), [files])
-  const iconFiles = useMemo(() => files.filter((file) => !widgetTypes.has(file.content.type) || !file.isWidget), [files])
+  const items = useMemo<CanvasItem[]>(() => [...files, ...folders], [files, folders])
 
   const beginItemMove = (item: CanvasItem, clientX: number, clientY: number) => {
     interactionRef.current = {
@@ -453,21 +441,7 @@ export function InfiniteCanvas() {
             height: 1,
           }}
         >
-          {widgetFiles.map((file) => (
-            <CanvasWidget
-              file={file}
-              isSelected={selectedItemId === file.id}
-              key={file.id}
-              onClick={() => selectItem(file.id)}
-              onPointerDown={(event) => {
-                event.stopPropagation()
-                selectItem(file.id)
-                beginItemMove(file, event.clientX, event.clientY)
-              }}
-            />
-          ))}
-
-          {iconFiles.map((item) => (
+          {files.map((item) => (
             <FileTileComponent
               file={item as FileTile}
               isSelected={selectedItemId === item.id}
@@ -489,21 +463,6 @@ export function InfiniteCanvas() {
               key={item.id}
               onClick={() => selectItem(item.id)}
               onDoubleClick={() => openFolder(item.id)}
-              onPointerDown={(event) => {
-                event.stopPropagation()
-                selectItem(item.id)
-                beginItemMove(item, event.clientX, event.clientY)
-              }}
-            />
-          ))}
-
-          {groups.map((item) => (
-            <GroupTileComponent
-              group={item as GroupTile}
-              isSelected={selectedItemId === item.id}
-              key={item.id}
-              onClick={() => selectItem(item.id)}
-              onDoubleClick={() => openGroup(item.id)}
               onPointerDown={(event) => {
                 event.stopPropagation()
                 selectItem(item.id)

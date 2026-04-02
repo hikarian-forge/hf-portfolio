@@ -7,48 +7,36 @@ const contentRoot = path.join(workspaceRoot, "content")
 const outputPath = path.join(contentRoot, "canvas-data.tsx")
 const manifestPath = path.join(contentRoot, "_canvas", "items.json")
 
-const widgetContentByExtension = {
-  png: (relativePath) => ({ type: "image", url: `/${relativePath.replace(/\\/g, "/")}`, alt: path.basename(relativePath) }),
-  jpg: (relativePath) => ({ type: "image", url: `/${relativePath.replace(/\\/g, "/")}`, alt: path.basename(relativePath) }),
-  jpeg: (relativePath) => ({ type: "image", url: `/${relativePath.replace(/\\/g, "/")}`, alt: path.basename(relativePath) }),
-  gif: (relativePath) => ({ type: "image", url: `/${relativePath.replace(/\\/g, "/")}`, alt: path.basename(relativePath) }),
-  webp: (relativePath) => ({ type: "image", url: `/${relativePath.replace(/\\/g, "/")}`, alt: path.basename(relativePath) }),
-  mp3: (relativePath) => ({ type: "audio", title: path.basename(relativePath), src: `/${relativePath.replace(/\\/g, "/")}` }),
-  wav: (relativePath) => ({ type: "audio", title: path.basename(relativePath), src: `/${relativePath.replace(/\\/g, "/")}` }),
-  mp4: (relativePath) => ({ type: "video", url: `/${relativePath.replace(/\\/g, "/")}` }),
-  mov: (relativePath) => ({ type: "video", url: `/${relativePath.replace(/\\/g, "/")}` }),
-}
+const mdExtensions = new Set(["md", "mdx"])
 
-const textExtensions = new Set(["md", "mdx", "txt", "json", "jsonc", "csv", "toml", "yaml", "yml"])
-
-const iconForExtension = (extension) => {
-  if (["png", "jpg", "jpeg", "gif", "webp"].includes(extension)) return "FileImage"
-  if (["mp3", "wav"].includes(extension)) return "FileAudio2"
-  if (["mp4", "mov"].includes(extension)) return "Film"
-  if (["csv"].includes(extension)) return "FileSpreadsheet"
-  if (["json", "jsonc", "toml", "yaml", "yml"].includes(extension)) return "FileJson"
-  if (["md", "mdx"].includes(extension)) return "NotebookPen"
-  return "FileText"
-}
-
-const iconImports = new Set([
-  "BarChart3",
-  "FileAudio2",
-  "FileImage",
-  "FileJson",
-  "FileSpreadsheet",
-  "FileText",
-  "Film",
-  "Folder",
-  "FolderOpen",
-  "LayoutGrid",
-  "NotebookPen",
-])
-
-const widgetTypes = new Set(["image", "audio", "video", "embed"])
+const iconImports = new Set(["Folder", "FolderOpen", "NotebookPen"])
 
 function slugify(input) {
-  return input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+}
+
+function parseFrontmatter(raw) {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  if (!match) {
+    return { metadata: null, body: raw }
+  }
+
+  const metadata = {}
+  for (const line of match[1].split(/\r?\n/)) {
+    const idx = line.indexOf(":")
+    if (idx === -1) continue
+    const key = line.slice(0, idx).trim()
+    const value = line.slice(idx + 1).trim()
+    if (key) {
+      metadata[key] = value
+    }
+  }
+
+  const body = raw.slice(match[0].length).replace(/^\r?\n/, "")
+  return { metadata: Object.keys(metadata).length > 0 ? metadata : null, body }
 }
 
 async function walk(directory) {
@@ -62,11 +50,29 @@ async function walk(directory) {
     if (entry.isDirectory()) {
       results.push({ type: "directory", name: entry.name, path: fullPath, children: await walk(fullPath) })
     } else {
-      results.push({ type: "file", name: entry.name, path: fullPath })
+      const ext = path.extname(entry.name).slice(1).toLowerCase()
+      if (mdExtensions.has(ext)) {
+        results.push({ type: "file", name: entry.name, path: fullPath })
+      }
     }
   }
 
   return results.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function pruneEmptyDirs(nodes) {
+  const pruned = []
+  for (const node of nodes) {
+    if (node.type === "directory") {
+      const children = pruneEmptyDirs(node.children)
+      if (children.length > 0) {
+        pruned.push({ ...node, children })
+      }
+    } else {
+      pruned.push(node)
+    }
+  }
+  return pruned
 }
 
 async function loadManifest() {
@@ -79,43 +85,18 @@ async function loadManifest() {
   }
 }
 
-async function readFileContent(fullPath, extension) {
-  if (!textExtensions.has(extension)) {
-    return null
-  }
-
-  return fs.readFile(fullPath, "utf8")
-}
-
-const createCoordinates = (depth, index, width = 112, height = 112, isWidget = false) => ({
+const createCoordinates = (depth, index, width = 112, height = 112) => ({
   x: 120 + depth * 160 + (index % 4) * 180,
-  y: 120 + Math.floor(index / 4) * (isWidget ? 220 : 160),
-  width: isWidget ? Math.max(width, 320) : width,
-  height: isWidget ? Math.max(height, 220) : height,
+  y: 120 + Math.floor(index / 4) * 160,
+  width,
+  height,
 })
 
 async function mapFileNode(node, parentSegments = [], depth = 0, index = 0) {
   const extension = path.extname(node.name).slice(1).toLowerCase()
-  const relativePath = path.relative(workspaceRoot, node.path)
-  const rawContent = await readFileContent(node.path, extension)
-  const isWidget = Boolean(widgetContentByExtension[extension])
-  const coordinates = createCoordinates(depth, index, 112, 112, isWidget)
-
-  let content
-  if (widgetContentByExtension[extension]) {
-    content = widgetContentByExtension[extension](relativePath)
-  } else if (extension === "csv") {
-    const rows = (rawContent ?? "")
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => line.split(","))
-    const columns = rows[0] ?? ["Column 1"]
-    content = { type: "table", columns, rows: rows.slice(1), caption: node.name }
-  } else if (extension === "md" || extension === "mdx") {
-    content = { type: "markdown", data: rawContent ?? `# ${node.name}` }
-  } else {
-    content = { type: "text", data: rawContent ?? `Content unavailable for ${node.name}` }
-  }
+  const rawContent = await fs.readFile(node.path, "utf8")
+  const coordinates = createCoordinates(depth, index)
+  const { metadata, body } = parseFrontmatter(rawContent)
 
   return {
     id: `file-${[...parentSegments, slugify(node.name)].join("-")}`,
@@ -123,66 +104,32 @@ async function mapFileNode(node, parentSegments = [], depth = 0, index = 0) {
     title: node.name,
     description: `Generated from content/${path.relative(contentRoot, node.path).replace(/\\/g, "/")}`,
     ...coordinates,
-    icon: `<${iconForExtension(extension)} className=\"h-8 w-8 text-foreground\" />`,
+    icon: `<NotebookPen className="h-8 w-8 text-foreground" />`,
     fileExtension: extension || undefined,
-    panelVariant: extension === "md" || extension === "mdx" ? "editor" : "default",
-    isWidget,
-    interactive: !isWidget,
-    content,
+    panelVariant: "editor",
+    ...(metadata ? { metadata } : {}),
+    content: { type: "markdown", data: body },
   }
-}
-
-function getManifestIcon(contentType) {
-  if (contentType === "image") return "<FileImage className=\"h-8 w-8 text-foreground\" />"
-  if (contentType === "audio") return "<FileAudio2 className=\"h-8 w-8 text-foreground\" />"
-  if (contentType === "video") return "<Film className=\"h-8 w-8 text-foreground\" />"
-  if (contentType === "embed") return "<BarChart3 className=\"h-8 w-8 text-foreground\" />"
-  return "<NotebookPen className=\"h-8 w-8 text-foreground\" />"
 }
 
 function mapManifestItem(item, index = 0) {
-  const contentType = item.contentType ?? "text"
-  const isWidget = item.isWidget ?? widgetTypes.has(contentType)
-  const coordinates = {
-    x: item.x ?? 240 + index * 180,
-    y: item.y ?? 100,
-    width: item.width ?? (isWidget ? 320 : 112),
-    height: item.height ?? (isWidget ? 220 : 112),
-  }
-
-  let content = null
-  let contentExpression = undefined
-
-  if (contentType === "image") {
-    content = { type: "image", url: item.url, alt: item.alt ?? item.title }
-  } else if (contentType === "audio") {
-    content = { type: "audio", title: item.title, artist: item.artist, src: item.url, coverUrl: item.coverUrl }
-  } else if (contentType === "video") {
-    content = { type: "video", url: item.url, poster: item.poster }
-  } else if (contentType === "embed") {
-    contentExpression = '{ type: "embed", component: MetricsWidget }'
-  } else if (contentType === "mixed") {
-    content = { type: "mixed", blocks: item.blocks ?? [] }
-  } else if (contentType === "table") {
-    content = { type: "table", columns: item.columns ?? [], rows: item.rows ?? [], caption: item.caption ?? item.title }
-  } else if (contentType === "markdown") {
-    content = { type: "markdown", data: item.data ?? `# ${item.title}` }
-  } else {
-    content = { type: "text", data: item.data ?? item.description ?? item.title }
-  }
+  const data = item.data ?? `# ${item.title}`
+  const { metadata, body } = parseFrontmatter(data)
 
   return {
     id: item.id ?? `file-manifest-${slugify(item.title ?? `item-${index}`)}`,
     type: "file",
     title: item.title ?? `item-${index}`,
     description: item.description,
-    ...coordinates,
-    icon: getManifestIcon(contentType),
-    fileExtension: item.fileExtension ?? (contentType === "embed" ? "embed" : undefined),
-    panelVariant: item.panelVariant ?? (contentType === "markdown" ? "editor" : "default"),
-    isWidget,
-    interactive: item.interactive ?? !isWidget,
-    ...(contentExpression ? { contentExpression } : { content }),
+    x: item.x ?? 240 + index * 180,
+    y: item.y ?? 100,
+    width: item.width ?? 112,
+    height: item.height ?? 112,
+    icon: `<NotebookPen className="h-8 w-8 text-foreground" />`,
+    fileExtension: item.fileExtension ?? "md",
+    panelVariant: item.panelVariant ?? "editor",
+    ...(metadata ? { metadata } : {}),
+    content: { type: "markdown", data: body },
   }
 }
 
@@ -208,32 +155,18 @@ async function mapFolderNode(node, parentSegments = [], depth = 0, index = 0) {
     title: node.name,
     description: `Generated from content/${path.relative(contentRoot, node.path).replace(/\\/g, "/")}`,
     ...coordinates,
-    icon: "<Folder className=\"h-9 w-9 text-foreground\" />",
-    iconOpen: "<FolderOpen className=\"h-9 w-9 text-foreground\" />",
+    icon: `<Folder className="h-9 w-9 text-foreground" />`,
+    iconOpen: `<FolderOpen className="h-9 w-9 text-foreground" />`,
     isOpen: false,
-    isArchived: false,
     panelVariant: "default",
     contents: await mapFolderContents(node.children, segments, depth + 1),
   }
 }
 
 async function mapRootNode(node, index = 0) {
-  const segment = slugify(node.name)
-
   if (node.type === "directory") {
-    const coordinates = createCoordinates(0, index)
-    return {
-      id: `group-${segment}`,
-      type: "group",
-      title: node.name,
-      description: `Generated from content/${path.relative(contentRoot, node.path).replace(/\\/g, "/")}`,
-      ...coordinates,
-      icon: "<LayoutGrid className=\"h-9 w-9 text-foreground\" />",
-      panelVariant: "default",
-      contents: await mapFolderContents(node.children, [segment], 1),
-    }
+    return mapFolderNode(node, [], 0, index)
   }
-
   return mapFileNode(node, [], 0, index)
 }
 
@@ -275,12 +208,12 @@ function stringifyNode(node, indent = 2) {
       continue
     }
 
-    if (key === "contentExpression") {
-      lines.push(`${pad}content: ${value},`)
+    if (key === "content") {
+      lines.push(`${pad}${key}: ${formatValue(value, indent)},`)
       continue
     }
 
-    if (key === "content") {
+    if (key === "metadata") {
       lines.push(`${pad}${key}: ${formatValue(value, indent)},`)
       continue
     }
@@ -294,7 +227,8 @@ function stringifyNode(node, indent = 2) {
 }
 
 async function main() {
-  const tree = await walk(contentRoot)
+  const rawTree = await walk(contentRoot)
+  const tree = pruneEmptyDirs(rawTree)
   const manifestItems = await loadManifest()
   const mapped = []
 
@@ -302,12 +236,14 @@ async function main() {
     mapped.push(await mapRootNode(entry, index))
   }
 
-  const manifestMapped = manifestItems.map((item, index) => mapManifestItem(item, index))
+  const manifestMapped = manifestItems
+    .filter((item) => item.contentType === "markdown" || !item.contentType)
+    .map((item, index) => mapManifestItem(item, index))
 
   const files = [...manifestMapped, ...mapped.filter((item) => item.type === "file")]
-  const groups = mapped.filter((item) => item.type === "group")
+  const folders = mapped.filter((item) => item.type === "folder")
 
-  const output = `import { ${Array.from(iconImports).sort().join(", ")} } from "lucide-react"\nimport type { FileTile, FolderTile, GroupTile } from "../src/types/canvas"\n\nconst MetricsWidget = () => (\n  <div className="grid h-full grid-cols-3 gap-3 text-sm text-foreground">\n    {[\n      ["Streams", "12.8k"],\n      ["Saves", "1.4k"],\n      ["Completion", "86%"],\n    ].map(([label, value]) => (\n      <div key={label} className="rounded-2xl border border-border bg-background p-3">\n        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{label}</p>\n        <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>\n      </div>\n    ))}\n  </div>\n)\n\nexport const canvasFiles: FileTile[] = [\n${files.map((item) => `  ${stringifyNode(item, 4)}`).join(",\n")}\n]\n\nexport const canvasFolders: FolderTile[] = []\n\nexport const canvasGroups: GroupTile[] = [\n${groups.map((item) => `  ${stringifyNode(item, 4)}`).join(",\n")}\n]\n`
+  const output = `import { Folder, FolderOpen, NotebookPen } from "lucide-react"\nimport type { FileTile, FolderTile } from "../src/types/canvas"\n\nexport const canvasFiles: FileTile[] = [\n${files.map((item) => `  ${stringifyNode(item, 4)}`).join(",\n")}\n]\n\nexport const canvasFolders: FolderTile[] = [\n${folders.map((item) => `  ${stringifyNode(item, 4)}`).join(",\n")}\n]\n`
 
   await fs.writeFile(outputPath, output, "utf8")
   console.log(`Generated ${path.relative(workspaceRoot, outputPath)}`)

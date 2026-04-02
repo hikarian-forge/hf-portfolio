@@ -1,12 +1,11 @@
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
-import { canvasFiles, canvasFolders, canvasGroups } from "../../content/canvas-data"
+import { canvasFiles, canvasFolders } from "../../content/canvas-data"
 import type {
   CanvasItem,
   FileTile,
+  FolderChild,
   FolderTile,
-  GroupChild,
-  GroupTile,
   OpenPanel,
   PanelBounds,
   TilePanelVariant,
@@ -47,13 +46,12 @@ type ItemLocation = {
   path: string[]
   depth: number
   parentId?: string
-  parentType?: "folder" | "group"
+  parentType?: "folder"
 }
 
 export interface CanvasState extends ViewportState {
   files: FileTile[]
   folders: FolderTile[]
-  groups: GroupTile[]
   openPanels: OpenPanel[]
   selectedItemId: string | null
   activePanelId: string | null
@@ -64,7 +62,6 @@ export interface CanvasState extends ViewportState {
   selectItem: (id: string | null) => void
   openFile: (fileId: string, variant?: TilePanelVariant) => void
   openFolder: (folderId: string, variant?: TilePanelVariant) => void
-  openGroup: (groupId: string, variant?: TilePanelVariant) => void
   closePanel: (panelId?: string) => void
   bringPanelToFront: (panelId: string) => void
   updatePanelPosition: (panelId: string, x: number, y: number) => void
@@ -101,7 +98,7 @@ const createPanelBounds = (index: number, variant: TilePanelVariant): PanelBound
   return { x: 90 + stagger, y: 72 + stagger, width: 520, height: 400 }
 }
 
-const updateGroupChildrenLayouts = (items: GroupChild[], layouts: ItemLayoutMap): GroupChild[] =>
+const updateFolderChildrenLayouts = (items: FolderChild[], layouts: ItemLayoutMap): FolderChild[] =>
   items.map((item) => {
     const layout = layouts[item.id]
     const nextItem = {
@@ -115,7 +112,7 @@ const updateGroupChildrenLayouts = (items: GroupChild[], layouts: ItemLayoutMap)
 
     return {
       ...nextItem,
-      contents: updateGroupChildrenLayouts(nextItem.contents, layouts),
+      contents: updateFolderChildrenLayouts(nextItem.contents, layouts),
     }
   })
 
@@ -133,27 +130,26 @@ const applyLayoutsToCanvasItems = (items: CanvasItem[], layouts: ItemLayoutMap):
 
     return {
       ...nextItem,
-      contents: updateGroupChildrenLayouts(nextItem.contents, layouts),
+      contents: updateFolderChildrenLayouts(nextItem.contents, layouts),
     }
   })
 
 const findItemLocationInChildren = (
-  items: GroupChild[],
+  items: FolderChild[],
   itemId: string,
   parentTitles: string[] = [],
   parentId?: string,
-  parentType?: "folder" | "group",
   depth = 0,
 ): ItemLocation | null => {
   for (const item of items) {
     const nextPath = [...parentTitles, item.title]
 
     if (item.id === itemId) {
-      return { item, path: nextPath, depth, parentId, parentType }
+      return { item, path: nextPath, depth, parentId, parentType: "folder" }
     }
 
     if (item.type === "folder" && depth < 5) {
-      const nested = findItemLocationInChildren(item.contents, itemId, nextPath, item.id, "folder", depth + 1)
+      const nested = findItemLocationInChildren(item.contents, itemId, nextPath, item.id, depth + 1)
       if (nested) {
         return nested
       }
@@ -171,9 +167,8 @@ const findItemLocation = (items: CanvasItem[], itemId: string): ItemLocation | n
       return { item, path: nextPath, depth: 0 }
     }
 
-    if (item.type !== "file") {
-      const parentType = item.type === "folder" ? "folder" : "group"
-      const nested = findItemLocationInChildren(item.contents, itemId, nextPath, item.id, parentType, 1)
+    if (item.type === "folder") {
+      const nested = findItemLocationInChildren(item.contents, itemId, nextPath, item.id, 1)
       if (nested) {
         return nested
       }
@@ -183,14 +178,14 @@ const findItemLocation = (items: CanvasItem[], itemId: string): ItemLocation | n
   return null
 }
 
-const updateGroupChildren = (
-  items: GroupChild[],
+const updateFolderChildren = (
+  items: FolderChild[],
   itemId: string,
   updater: (item: CanvasItem) => CanvasItem,
-): GroupChild[] =>
+): FolderChild[] =>
   items.map((item) => {
     if (item.id === itemId) {
-      return updater(item) as GroupChild
+      return updater(item) as FolderChild
     }
 
     if (item.type !== "folder") {
@@ -199,7 +194,7 @@ const updateGroupChildren = (
 
     return {
       ...item,
-      contents: updateGroupChildren(item.contents, itemId, updater),
+      contents: updateFolderChildren(item.contents, itemId, updater),
     }
   })
 
@@ -219,7 +214,7 @@ const updateCanvasItems = (
 
     return {
       ...item,
-      contents: updateGroupChildren(item.contents, itemId, updater),
+      contents: updateFolderChildren(item.contents, itemId, updater),
     }
   })
 
@@ -264,7 +259,10 @@ const buildPanelFromLocation = (
     zIndex: bounds.zIndex,
     previousBounds: base?.previousBounds,
     ...(location.item.type === "file"
-      ? { fileContent: location.item.content }
+      ? {
+          fileContent: location.item.content,
+          metadata: location.item.metadata,
+        }
       : { collectionContents: location.item.contents }),
   }
 }
@@ -273,9 +271,8 @@ const hydratePanels = (
   persistedPanels: PersistedPanelState[],
   files: FileTile[],
   folders: FolderTile[],
-  groups: GroupTile[],
 ): OpenPanel[] => {
-  const items = [...files, ...folders, ...groups]
+  const items: CanvasItem[] = [...files, ...folders]
 
   return persistedPanels
     .map((panel, index) => {
@@ -362,8 +359,12 @@ const openPanelForLocation = (
               path: location.path,
               depth: location.depth,
               ...(location.item.type === "file"
-                ? { fileContent: location.item.content, collectionContents: undefined }
-                : { collectionContents: location.item.contents, fileContent: undefined }),
+                ? {
+                    fileContent: location.item.content,
+                    metadata: location.item.metadata,
+                    collectionContents: undefined,
+                  }
+                : { collectionContents: location.item.contents, fileContent: undefined, metadata: undefined }),
             }
           : panel,
       ),
@@ -371,12 +372,21 @@ const openPanelForLocation = (
     )
   }
 
-  return [...existingPanels, buildPanelFromLocation({ ...location, item: { ...location.item, panelVariant: variant ?? location.item.panelVariant } }, null, existingPanels.length)]
+  return [
+    ...existingPanels,
+    buildPanelFromLocation(
+      {
+        ...location,
+        item: { ...location.item, panelVariant: variant ?? location.item.panelVariant },
+      },
+      null,
+      existingPanels.length,
+    ),
+  ]
 }
 
 const initialFiles = applyLayoutsToCanvasItems(canvasFiles, {}) as FileTile[]
 const initialFolders = applyLayoutsToCanvasItems(canvasFolders, {}) as FolderTile[]
-const initialGroups = applyLayoutsToCanvasItems(canvasGroups, {}) as GroupTile[]
 
 export const useCanvasStore = create<CanvasState>()(
   persist(
@@ -384,7 +394,6 @@ export const useCanvasStore = create<CanvasState>()(
       ...viewportDefaults,
       files: initialFiles,
       folders: initialFolders,
-      groups: initialGroups,
       openPanels: [],
       selectedItemId: null,
       activePanelId: null,
@@ -406,12 +415,11 @@ export const useCanvasStore = create<CanvasState>()(
             itemLayouts,
             files: updateCanvasItems(state.files, itemId, (item) => ({ ...item, x, y })) as FileTile[],
             folders: updateCanvasItems(state.folders, itemId, (item) => ({ ...item, x, y })) as FolderTile[],
-            groups: updateCanvasItems(state.groups, itemId, (item) => ({ ...item, x, y })) as GroupTile[],
           }
         }),
       selectItem: (id) => set({ selectedItemId: id }),
       openFile: (fileId, variant) => {
-        const location = findItemLocation([...get().files, ...get().folders, ...get().groups], fileId)
+        const location = findItemLocation([...get().files, ...get().folders], fileId)
         if (!location || location.item.type !== "file") {
           return
         }
@@ -427,24 +435,8 @@ export const useCanvasStore = create<CanvasState>()(
         })
       },
       openFolder: (folderId, variant) => {
-        const location = findItemLocation([...get().files, ...get().folders, ...get().groups], folderId)
+        const location = findItemLocation([...get().files, ...get().folders], folderId)
         if (!location || location.item.type !== "folder" || location.depth > 5) {
-          return
-        }
-
-        set((state) => {
-          const openPanels = openPanelForLocation(location, state.openPanels, variant)
-          return {
-            openPanels,
-            persistedPanels: serializePanels(openPanels),
-            activePanelId: createPanelId(location.item.id),
-            selectedItemId: location.item.id,
-          }
-        })
-      },
-      openGroup: (groupId, variant) => {
-        const location = findItemLocation([...get().files, ...get().folders, ...get().groups], groupId)
-        if (!location || location.item.type !== "group") {
           return
         }
 
@@ -561,16 +553,14 @@ export const useCanvasStore = create<CanvasState>()(
         const itemLayouts = persisted.itemLayouts ?? {}
         const files = applyLayoutsToCanvasItems(canvasFiles, itemLayouts) as FileTile[]
         const folders = applyLayoutsToCanvasItems(canvasFolders, itemLayouts) as FolderTile[]
-        const groups = applyLayoutsToCanvasItems(canvasGroups, itemLayouts) as GroupTile[]
         const persistedPanels = persisted.persistedPanels ?? []
-        const openPanels = hydratePanels(persistedPanels, files, folders, groups)
+        const openPanels = hydratePanels(persistedPanels, files, folders)
 
         return {
           ...currentState,
           ...persisted,
           files,
           folders,
-          groups,
           itemLayouts,
           persistedPanels,
           openPanels,

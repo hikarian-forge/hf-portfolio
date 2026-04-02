@@ -1,66 +1,14 @@
-import type { ComponentType, ReactNode } from "react"
+import type { ReactNode } from "react"
 
-export type TileType = "file" | "folder" | "group"
+export type TileType = "file" | "folder"
 export type TilePanelVariant = "default" | "minimal" | "expanded" | "editor"
-
-export type TextContent = {
-  type: "text"
-  data: string
-}
 
 export type MarkdownContent = {
   type: "markdown"
   data: string
 }
 
-export type ImageContent = {
-  type: "image"
-  url: string
-  alt?: string
-}
-
-export type VideoContent = {
-  type: "video"
-  url: string
-  poster?: string
-}
-
-export type AudioContent = {
-  type: "audio"
-  title: string
-  artist?: string
-  src: string
-  coverUrl?: string
-  accent?: string
-}
-
-export type TableContent = {
-  type: "table"
-  columns: string[]
-  rows: Array<Array<string | number>>
-  caption?: string
-}
-
-export type EmbedContent = {
-  type: "embed"
-  component: ComponentType<Record<string, unknown>>
-  props?: Record<string, unknown>
-}
-
-export type MixedContent = {
-  type: "mixed"
-  blocks: FileContent[]
-}
-
-export type FileContent =
-  | TextContent
-  | MarkdownContent
-  | ImageContent
-  | VideoContent
-  | AudioContent
-  | TableContent
-  | EmbedContent
-  | MixedContent
+export type FileContent = MarkdownContent
 
 export interface BaseTile {
   id: string
@@ -79,31 +27,21 @@ export interface FileTile extends BaseTile {
   fileExtension?: string
   description?: string
   panelVariant?: TilePanelVariant
-  isWidget?: boolean
-  interactive?: boolean
+  metadata?: Record<string, string>
 }
 
 export interface FolderTile extends BaseTile {
   type: "folder"
   title: string
-  contents: GroupChild[]
+  contents: FolderChild[]
   iconOpen?: ReactNode
   isOpen: boolean
-  isArchived: boolean
   description?: string
   panelVariant?: TilePanelVariant
 }
 
-export interface GroupTile extends BaseTile {
-  type: "group"
-  title: string
-  contents: GroupChild[]
-  description?: string
-  panelVariant?: TilePanelVariant
-}
-
-export type GroupChild = FileTile | FolderTile
-export type CanvasItem = FileTile | FolderTile | GroupTile
+export type FolderChild = FileTile | FolderTile
+export type CanvasItem = FileTile | FolderTile
 
 export interface PanelBounds {
   x: number
@@ -125,6 +63,7 @@ export interface OpenPanel extends PanelBounds {
   zIndex: number
   description?: string
   fileContent?: FileContent
-  collectionContents?: GroupChild[]
+  collectionContents?: FolderChild[]
+  metadata?: Record<string, string>
   previousBounds?: PanelBounds & { variant: TilePanelVariant }
 }

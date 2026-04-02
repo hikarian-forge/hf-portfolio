@@ -1,0 +1,14 @@
+---
+title: Track Arrangement
+type: arrangement
+project: album-one
+---
+
+# Track Arrangement
+
+| Section | Length | Status  |
+|---------|--------|---------|
+| Intro   | 00:24  | Done    |
+| Verse   | 00:42  | Done    |
+| Bridge  | 00:19  | Review  |
+| Outro   | 00:28  | Pending |

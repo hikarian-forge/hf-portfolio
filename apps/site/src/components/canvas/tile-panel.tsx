@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { useCanvasStore } from "@/store/canvasStore"
-import type { FileContent, GroupChild, OpenPanel } from "@/types/canvas"
+import type { FileContent, FolderChild, OpenPanel } from "@/types/canvas"
 
 interface TilePanelProps {
   panel: OpenPanel
@@ -24,106 +24,36 @@ const resizeHandleClasses = {
   bottom: "bottom-0 left-1/2 h-2 w-12 -translate-x-1/2 cursor-s-resize",
 } as const
 
-const widgetContentTypes = new Set(["image", "video", "audio", "embed"])
+function MetadataRenderer({ metadata }: { metadata: Record<string, string> }) {
+  const entries = Object.entries(metadata)
+  if (entries.length === 0) return null
 
-function FileContentRenderer({ content }: { content: FileContent }) {
-  switch (content.type) {
-    case "text":
-      return (
-        <div className="no-scrollbar h-full overflow-auto">
-          <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">{content.data}</p>
-        </div>
-      )
-    case "markdown":
-      return (
-        <article className="prose prose-invert no-scrollbar h-full max-w-none overflow-auto prose-headings:font-medium prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-foreground">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.data}</ReactMarkdown>
-        </article>
-      )
-    case "image":
-      return (
-        <div className="h-full w-full overflow-hidden rounded-2xl">
-          <img alt={content.alt ?? "Canvas content"} className="h-full w-full object-cover" src={content.url} />
-        </div>
-      )
-    case "video":
-      return (
-        <div className="h-full w-full overflow-hidden rounded-2xl bg-background">
-          <video className="h-full w-full object-cover" controls poster={content.poster} src={content.url} />
-        </div>
-      )
-    case "audio":
-      return (
-        <div className="grid h-full gap-5 rounded-2xl border border-border bg-background p-4 md:grid-cols-[180px_minmax(0,1fr)]">
-          <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-muted">
-            {content.coverUrl ? (
-              <img alt={content.title} className="h-full w-full object-cover" src={content.coverUrl} />
-            ) : (
-              <div className="flex h-full items-center justify-center text-4xl text-muted-foreground">♪</div>
-            )}
+  return (
+    <div className="mb-4 rounded-xl border border-border bg-background">
+      <div className="border-b border-border px-4 py-2.5">
+        <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground">Metadata</p>
+      </div>
+      <div className="divide-y divide-border">
+        {entries.map(([key, value]) => (
+          <div className="flex min-h-[36px] items-center gap-4 px-4 py-2" key={key}>
+            <span className="min-w-[100px] shrink-0 text-xs font-medium text-muted-foreground">{key}</span>
+            <span className="text-sm text-foreground">{value}</span>
           </div>
-          <div className="flex min-w-0 flex-col justify-end gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Audio file</p>
-              <h3 className="mt-2 text-2xl font-medium text-foreground">{content.title}</h3>
-              {content.artist ? <p className="mt-1 text-sm text-muted-foreground">{content.artist}</p> : null}
-            </div>
-            <audio className="w-full" controls src={content.src} />
-          </div>
-        </div>
-      )
-    case "table":
-      return (
-        <div className="no-scrollbar h-full overflow-auto rounded-2xl border border-border bg-background">
-          {content.caption ? <div className="border-b border-border px-4 py-3 text-sm font-medium text-foreground">{content.caption}</div> : null}
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm text-foreground">
-              <thead className="bg-muted text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                <tr>
-                  {content.columns.map((column) => (
-                    <th key={column} className="px-4 py-3 font-medium">
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {content.rows.map((row, rowIndex) => (
-                  <tr key={`${rowIndex}-${row.join("-")}`} className="border-t border-border">
-                    {row.map((value, columnIndex) => (
-                      <td key={`${columnIndex}-${String(value)}`} className="px-4 py-3 text-foreground">
-                        {value}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )
-    case "embed": {
-      const Component = content.component
-      return (
-        <div className="h-full w-full overflow-hidden">
-          <Component {...(content.props ?? {})} />
-        </div>
-      )
-    }
-    case "mixed":
-      return (
-        <div className="no-scrollbar h-full space-y-4 overflow-auto">
-          {content.blocks.map((block, index) => (
-            <div key={`${block.type}-${index}`} className="rounded-2xl border border-border bg-background p-4">
-              <FileContentRenderer content={block} />
-            </div>
-          ))}
-        </div>
-      )
-  }
+        ))}
+      </div>
+    </div>
+  )
 }
 
-function CollectionContentRenderer({ items, depth }: { items: GroupChild[]; depth: number }) {
+function FileContentRenderer({ content }: { content: FileContent }) {
+  return (
+    <article className="prose prose-invert no-scrollbar h-full max-w-none overflow-auto prose-headings:font-medium prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-foreground prose-th:text-foreground prose-td:text-foreground">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.data}</ReactMarkdown>
+    </article>
+  )
+}
+
+function CollectionContentRenderer({ items, depth }: { items: FolderChild[]; depth: number }) {
   const openFile = useCanvasStore((state) => state.openFile)
   const openFolder = useCanvasStore((state) => state.openFolder)
 
@@ -132,17 +62,17 @@ function CollectionContentRenderer({ items, depth }: { items: GroupChild[]; dept
       <div className="flex h-full min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-background px-6 text-center">
         <p className="text-lg font-medium text-foreground">Nothing available yet</p>
         <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-          This collection is empty right now or still under construction.
+          This folder is empty right now or still under construction.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-x-6 gap-y-8">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
       {items.map((item) => (
         <button
-          className="flex flex-col items-center gap-2 rounded-xl px-2 py-2 text-center transition hover:text-foreground"
+          className="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-4 text-center transition hover:border-foreground/20 hover:text-foreground"
           key={item.id}
           onClick={() => {
             if (item.type === "folder") {
@@ -156,12 +86,12 @@ function CollectionContentRenderer({ items, depth }: { items: GroupChild[]; dept
           }}
           type="button"
         >
-          <div className="flex h-14 w-14 items-center justify-center text-foreground">
+          <div className="flex h-12 w-12 items-center justify-center text-foreground">
             {item.type === "folder" ? item.iconOpen ?? item.icon : item.icon}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 w-full">
             <p className="truncate text-[13px] font-medium text-foreground">{item.title}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
               {item.type === "folder" ? `Folder ${Math.min(depth + 1, 5)}/5` : item.fileExtension ?? item.type}
             </p>
           </div>
@@ -245,10 +175,12 @@ export function TilePanel({ panel, isActive }: TilePanelProps) {
     [panel.height, panel.width, panel.x, panel.y, panel.zIndex],
   )
 
+  const headerHeight = 80
+
   return (
     <section
       className={cn(
-        "pointer-events-auto absolute overflow-hidden border shadow-lg",
+        "pointer-events-auto absolute flex flex-col overflow-hidden border shadow-lg",
         panelVariantClassName[panel.variant],
         isActive && "ring-1 ring-ring",
       )}
@@ -256,7 +188,7 @@ export function TilePanel({ panel, isActive }: TilePanelProps) {
       style={panelStyle}
     >
       <header
-        className="flex cursor-grab items-center justify-between border-b border-border px-4 py-3 active:cursor-grabbing"
+        className="flex shrink-0 cursor-grab items-center justify-between border-b border-border px-4 py-3 active:cursor-grabbing"
         onPointerDown={(event) => {
           draggingRef.current = {
             originX: event.clientX,
@@ -270,10 +202,10 @@ export function TilePanel({ panel, isActive }: TilePanelProps) {
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
             <GripHorizontal className="h-3.5 w-3.5" />
             <span>{panel.sourceType}</span>
-            <span>{panel.depth}/5</span>
+            {panel.depth > 0 ? <span>{panel.depth}/5</span> : null}
           </div>
           <h2 className="mt-1 truncate text-base font-medium text-foreground">{panel.title}</h2>
-          <p className="mt-1 truncate text-xs text-muted-foreground">/{panel.path.join("/")}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">/{panel.path.join("/")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="rounded-full border border-border bg-background p-2 text-muted-foreground transition hover:text-foreground" onClick={() => togglePanelExpanded(panel.id)} type="button">
@@ -285,15 +217,9 @@ export function TilePanel({ panel, isActive }: TilePanelProps) {
         </div>
       </header>
 
-      <div
-        className={cn(
-          "bg-card p-4",
-          panel.fileContent && widgetContentTypes.has(panel.fileContent.type)
-            ? "h-[calc(100%-88px)] overflow-hidden"
-            : "no-scrollbar h-[calc(100%-88px)] overflow-auto",
-        )}
-      >
+      <div className="no-scrollbar flex-1 overflow-auto bg-card p-4">
         {panel.description ? <p className="mb-4 text-sm text-muted-foreground">{panel.description}</p> : null}
+        {panel.metadata ? <MetadataRenderer metadata={panel.metadata} /> : null}
         {panel.fileContent ? <FileContentRenderer content={panel.fileContent} /> : null}
         {panel.collectionContents ? <CollectionContentRenderer depth={panel.depth} items={panel.collectionContents} /> : null}
       </div>
