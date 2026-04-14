@@ -1,69 +1,79 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
 
-export type TileType = "file" | "folder"
-export type TilePanelVariant = "default" | "minimal" | "expanded" | "editor"
+type Tile = "file" | "folder";
+type TileVariant = "default" | "minimal" | "expanded" | "editor";
+type TileContent = {
+	type: "markdown" | "json" | "txt";
+	data: string;
+};
 
-export type MarkdownContent = {
-  type: "markdown"
-  data: string
+interface BaseTile {
+	id: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	type: Tile;
+	icon: ReactNode;
 }
 
-export type FileContent = MarkdownContent
-
-export interface BaseTile {
-  id: string
-  x: number
-  y: number
-  width: number
-  height: number
-  type: TileType
-  icon: ReactNode
+interface FileTile extends BaseTile {
+	type: "file";
+	title: string;
+	content: TileContent;
+	fileExtension?: string;
+	description?: string;
+	panelVariant?: TileVariant;
+	metadata?: Record<string, string>;
 }
 
-export interface FileTile extends BaseTile {
-  type: "file"
-  title: string
-  content: FileContent
-  fileExtension?: string
-  description?: string
-  panelVariant?: TilePanelVariant
-  metadata?: Record<string, string>
+interface FolderTile extends BaseTile {
+	type: "folder";
+	title: string;
+	contents: FolderChild[];
+	iconOpen?: ReactNode;
+	isOpen: boolean;
+	description?: string;
+	panelVariant?: TileVariant;
 }
 
-export interface FolderTile extends BaseTile {
-  type: "folder"
-  title: string
-  contents: FolderChild[]
-  iconOpen?: ReactNode
-  isOpen: boolean
-  description?: string
-  panelVariant?: TilePanelVariant
+type FolderChild = FileTile | FolderTile;
+type CanvasItem = FileTile | FolderTile;
+
+interface PanelBounds {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
 }
 
-export type FolderChild = FileTile | FolderTile
-export type CanvasItem = FileTile | FolderTile
-
-export interface PanelBounds {
-  x: number
-  y: number
-  width: number
-  height: number
+interface OpenPanel extends PanelBounds {
+	id: string;
+	sourceId: string;
+	sourceType: Tile;
+	title: string;
+	parentId?: string;
+	parentType?: Tile;
+	path: string[];
+	depth: number;
+	variant: TileVariant;
+	zIndex: number;
+	description?: string;
+	TileContent?: TileContent;
+	collectionContents?: FolderChild[];
+	metadata?: Record<string, string>;
+	previousBounds?: PanelBounds & { variant: TileVariant };
 }
 
-export interface OpenPanel extends PanelBounds {
-  id: string
-  sourceId: string
-  sourceType: TileType
-  title: string
-  parentId?: string
-  parentType?: TileType
-  path: string[]
-  depth: number
-  variant: TilePanelVariant
-  zIndex: number
-  description?: string
-  fileContent?: FileContent
-  collectionContents?: FolderChild[]
-  metadata?: Record<string, string>
-  previousBounds?: PanelBounds & { variant: TilePanelVariant }
-}
+export {
+	Tile,
+	TileVariant,
+	TileContent,
+	BaseTile,
+	FileTile,
+	FolderTile,
+	FolderChild,
+	CanvasItem,
+	OpenPanel,
+	PanelBounds,
+};

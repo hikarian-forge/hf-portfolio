@@ -1,19 +1,19 @@
 {
-  "items": [
-    {
-      "id": "file-showcase-markdown",
-      "title": "canvas-tour.md",
-      "description": "Markdown panel example",
-      "contentType": "markdown",
-      "data": "---\ntitle: Canvas Tour\ntype: guide\n---\n\n# Canvas Tour\n\nThis file demonstrates markdown rendering with headings, lists, and regular text.\n\n- Drag icons to rearrange items\n- Double-click files to open panels\n- Open folders to browse nested content\n- Use keyboard shortcuts for navigation",
-      "x": 160,
-      "y": 420,
-      "width": 112,
-      "height": 112,
-      "fileExtension": "md",
-      "panelVariant": "editor",
-      "isWidget": false,
-      "interactive": true
-    }
-  ]
+	"items": [
+		{
+			"id": "file-showcase-markdown",
+			"title": "canvas-tour.md",
+			"description": "Markdown panel example",
+			"contentType": "markdown",
+			"data": "---\ntitle: Canvas Tour\ntype: guide\n---\n\n# Canvas Tour\n\nThis file demonstrates markdown rendering with headings, lists, and regular text.\n\n- Drag icons to rearrange items\n- Double-click files to open panels\n- Open folders to browse nested content\n- Use keyboard shortcuts for navigation",
+			"x": 160,
+			"y": 420,
+			"width": 112,
+			"height": 112,
+			"fileExtension": "md",
+			"panelVariant": "editor",
+			"isWidget": false,
+			"interactive": true
+		}
+	]
 }

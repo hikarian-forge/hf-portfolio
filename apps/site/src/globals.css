@@ -141,6 +141,24 @@
 /*#endregion */
 
 /*#region Utilities */
+@utility crt-scan {
+  position: relative;
+
+  &::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
+    z-index: 50;
+    background-size: 100% 4px;
+    pointer-events: none;
+  }
+}
+
 @utility no-scrollbar {
   @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
 }
@@ -215,7 +233,6 @@
   --shadow-2xl: 0px 1px 3px 0px oklch(0 0 0 / 0.03);
 }
 
-
 .dark {
   --background: oklch(0.24 0.00 219.61);
   --foreground: oklch(0.81 0.03 72.40);
@@ -258,7 +275,6 @@
   --shadow-xl: 0px 1px 3px 0px oklch(0 0 0 / 0.01), 0px 8px 10px -1px oklch(0 0 0 / 0.01);
   --shadow-2xl: 0px 1px 3px 0px oklch(0 0 0 / 0.03);
 }
-
 
 @theme inline {
   --color-background: var(--background);
@@ -312,10 +328,10 @@
   --shadow-2xl: var(--shadow-2xl);
 }
 
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    border-radius: 0 !important;
   }
 
   html {
@@ -326,9 +342,12 @@
   body {
     @apply m-0;
     @apply bg-background text-foreground;
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: grayscale;
+
+    /* NOTE: CRT Phosphor Glow Effect */
+    text-shadow: 0 0 5px color-mix(in oklch, var(--foreground) 60%, transparent);
   }
 
   code {
